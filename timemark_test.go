@@ -18,7 +18,7 @@ var alert_function = func(s string) func(a *AlertData) {
 			a)
 
 		fmt.Println(a.CallersTree(3))
-		fmt.Println(a.CallersTree(2))
+		fmt.Println(a.CallersTree(232))
 	}
 }
 
@@ -29,7 +29,7 @@ var tm1 = New(alert_function("more")).AlertIfMore(200 * time.Millisecond)
 var tm2 = New(alert_function("start and less")).AlertAtStart().AlertIfLess(2 * time.Second)
 
 //time marker, no alerts
-var tm3 = New(alert_function("start")).AlertAtStart()
+var tm3 = New(alert_function("start")).AlertAtStart().AlertAtEnd()
 
 func b() {
 	defer tm1.Get().AlertIfMore(800 * time.Millisecond).Check()
@@ -45,7 +45,7 @@ type obj struct {
 var ob obj
 
 func (o *obj) c() {
-	defer tm1.Get().Check()
+	defer tm1.Get().AlertAtStart().AlertAtEnd().AlertIfMore(time.Millisecond).AlertIfLess(time.Second).Check()
 	defer tm2.Get().Check()
 
 	time.Sleep(100 * time.Millisecond)
@@ -74,7 +74,7 @@ func Test_TimeMarker(t *testing.T) {
 
 	//fmt.Printf("alerts: %d\n", alerts_called)
 
-	if alerts_called != 11 {
+	if alerts_called != 15 {
 		t.Fatal()
 	}
 }
