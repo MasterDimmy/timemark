@@ -54,7 +54,7 @@ func (a *AlertData) CallersTree(count int) string {
 		if fn != nil {
 			fl, ln = fn.FileLine(v)
 		}
-		if ln > 0 {
+		if ln > 0 && !(fl == "asm_amd64.s" && ln == 1582) {
 			if len(ret) != 0 {
 				ret += "->"
 			}
