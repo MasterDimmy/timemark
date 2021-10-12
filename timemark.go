@@ -80,22 +80,28 @@ func (a *AlertData) CallersTree(count int) string {
 type AlertFunc func(a *AlertData)
 
 type timeMarker struct {
-	MoreLimit time.Duration
-	LessLimit time.Duration
-
 	af AlertFunc
 
-	alertAtStart bool //whether we log starting to watch function (when it launched)
-	alertAtEnd   bool
+	tmLimits
 }
 
 func New(af AlertFunc) *timeMarker {
 	return &timeMarker{
-		MoreLimit: time.Duration(100 * 365 * 24 * time.Hour), //not set
-		LessLimit: time.Duration(0),                          //not set
+		tmLimits: tmLimits{
+			MoreLimit: time.Duration(100 * 365 * 24 * time.Hour), //not set
+			LessLimit: time.Duration(0),                          //not set
+		},
 
 		af: af, //alert function
 	}
+}
+
+type tmLimits struct {
+	MoreLimit time.Duration
+	LessLimit time.Duration
+
+	alertAtStart bool //whether we log starting to watch function (when it launched)
+	alertAtEnd   bool
 }
 
 func (tm *timeMarker) AlertAtStart() *timeMarker {
@@ -103,7 +109,17 @@ func (tm *timeMarker) AlertAtStart() *timeMarker {
 	return tm
 }
 
+func (tm *singleChecker) AlertAtStart() *singleChecker {
+	tm.alertAtStart = true
+	return tm
+}
+
 func (tm *timeMarker) AlertAtEnd() *timeMarker {
+	tm.alertAtEnd = true
+	return tm
+}
+
+func (tm *singleChecker) AlertAtEnd() *singleChecker {
 	tm.alertAtEnd = true
 	return tm
 }
@@ -118,12 +134,24 @@ func (tm *timeMarker) AlertIfLess(t time.Duration) *timeMarker {
 	return tm
 }
 
+func (tm *singleChecker) AlertIfMore(t time.Duration) *singleChecker {
+	atomic.StoreInt64((*int64)(&tm.MoreLimit), int64(t))
+	return tm
+}
+
+func (tm *singleChecker) AlertIfLess(t time.Duration) *singleChecker {
+	atomic.StoreInt64((*int64)(&tm.LessLimit), int64(t))
+	return tm
+}
+
 type singleChecker struct {
 	Function string    //caller function name
 	Callers  []uintptr //stack callers functions ierarchy
 
 	start time.Time
 	tm    *timeMarker
+
+	tmLimits
 }
 
 var replacer = strings.NewReplacer("command-line-arguments.", "")

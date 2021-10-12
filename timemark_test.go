@@ -32,7 +32,7 @@ var tm2 = New(alert_function("start and less")).AlertAtStart().AlertIfLess(2 * t
 var tm3 = New(alert_function("start")).AlertAtStart()
 
 func b() {
-	defer tm1.Get().Check()
+	defer tm1.Get().AlertIfMore(800 * time.Millisecond).Check()
 
 	c2()
 	c2()
