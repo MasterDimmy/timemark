@@ -211,7 +211,8 @@ func (sc *singleChecker) Check() {
 			Function: sc.Function,
 			Callers:  sc.Callers,
 
-			When: now,
+			When:  now,
+			Spent: time.Since(sc.start),
 		})
 		return
 	}
@@ -224,7 +225,8 @@ func (sc *singleChecker) Check() {
 			Function: sc.Function,
 			Callers:  sc.Callers,
 
-			When: now,
+			When:  now,
+			Spent: time.Since(sc.start),
 		})
 		return
 	}
@@ -237,7 +239,8 @@ func (sc *singleChecker) Check() {
 			Function: sc.Function,
 			Callers:  sc.Callers,
 
-			When: now,
+			When:  now,
+			Spent: time.Since(sc.start),
 		})
 	}
 }
