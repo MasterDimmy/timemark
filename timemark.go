@@ -161,6 +161,8 @@ func (tm *timeMarker) Get() *singleChecker {
 		start: time.Now(),
 		tm:    tm,
 
+		tmLimits: tm.tmLimits,
+
 		Callers: make([]uintptr, 30),
 	}
 
@@ -203,7 +205,7 @@ func (tm *timeMarker) Get() *singleChecker {
 func (sc *singleChecker) Check() {
 	now := time.Now()
 
-	if now.After(sc.start.Add(sc.tm.MoreLimit)) {
+	if now.After(sc.start.Add(sc.MoreLimit)) {
 		sc.tm.af(&AlertData{
 			AlertType:    MORE_LIMIT,
 			AlertTypeStr: alertTypeStr[MORE_LIMIT],
@@ -217,7 +219,7 @@ func (sc *singleChecker) Check() {
 		return
 	}
 
-	if now.Before(sc.start.Add(sc.tm.LessLimit)) {
+	if now.Before(sc.start.Add(sc.LessLimit)) {
 		sc.tm.af(&AlertData{
 			AlertType:    LESS_LIMIT,
 			AlertTypeStr: alertTypeStr[LESS_LIMIT],
@@ -231,7 +233,7 @@ func (sc *singleChecker) Check() {
 		return
 	}
 
-	if sc.tm.alertAtEnd {
+	if sc.alertAtEnd {
 		sc.tm.af(&AlertData{
 			AlertType:    FINISH,
 			AlertTypeStr: alertTypeStr[FINISH],
