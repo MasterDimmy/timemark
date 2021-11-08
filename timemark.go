@@ -27,8 +27,11 @@ type AlertData struct {
 	AlertType    int
 	AlertTypeStr string
 
-	Function string    //invoker's function name
-	Callers  []uintptr //stack frame  for runtime.CallersFrame for future investigation if needed
+	File     string //invoker's file name
+	Function string //invoker's function name
+	Line     int    //invoker's file pos
+
+	Callers []uintptr //stack frame  for runtime.CallersFrame for future investigation if needed
 
 	When  time.Time //when happened
 	Spent time.Duration
@@ -85,7 +88,15 @@ type timeMarker struct {
 	tmLimits
 }
 
+func defaultAlertFunction(a *AlertData) {
+	fmt.Printf("%s:%d function [%s] worked %s !\n", a.File, a.Line, a.Function, a.Spent.Truncate(time.Millisecond).String())
+}
+
 func New(af AlertFunc) *timeMarker {
+	if af == nil {
+		af = defaultAlertFunction
+	}
+
 	return &timeMarker{
 		tmLimits: tmLimits{
 			MoreLimit: time.Duration(100 * 365 * 24 * time.Hour), //not set
@@ -145,6 +156,8 @@ func (tm *singleChecker) AlertIfLess(t time.Duration) *singleChecker {
 }
 
 type singleChecker struct {
+	Line     int
+	File     string
 	Function string    //caller function name
 	Callers  []uintptr //stack callers functions ierarchy
 
@@ -166,15 +179,35 @@ func (tm *timeMarker) Get() *singleChecker {
 		Callers: make([]uintptr, 30),
 	}
 
-	wr := runtime.Callers(2, ret.Callers)
+	wr := runtime.Callers(1, ret.Callers)
 	if wr < 30 {
 		ret.Callers = ret.Callers[:wr]
 	}
 
 	if wr > 0 {
-		fn := runtime.FuncForPC(ret.Callers[0])
-		if fn != nil {
-			ret.Function = replacer.Replace(fn.Name())
+		fni := 0
+		if wr > 2 {
+			fni = 2
+		}
+
+		fn := runtime.FuncForPC(ret.Callers[fni])
+		ret.File, ret.Line = fn.FileLine(ret.Callers[fni])
+		ret.Function = replacer.Replace(fn.Name())
+
+		// взять +1 строку после данной
+		// command-line-arguments.(*singleChecker).AlertAtStart
+		for i := 1; i < wr; i++ {
+			fn = runtime.FuncForPC(ret.Callers[i])
+			if fn != nil {
+				fname := fn.Name()
+				if strings.Contains(fname, "command-line-arguments") &&
+					strings.Contains(fname, "*singleChecker") {
+					continue
+				}
+				ret.Function = replacer.Replace(fn.Name())
+				ret.File, ret.Line = fn.FileLine(ret.Callers[i])
+				break
+			}
 		}
 	}
 
@@ -192,7 +225,10 @@ func (tm *timeMarker) Get() *singleChecker {
 			AlertTypeStr: alertTypeStr[START],
 
 			Function: ret.Function,
-			Callers:  ret.Callers,
+			File:     ret.File,
+			Line:     ret.Line,
+
+			Callers: ret.Callers,
 
 			When: ret.start,
 		})
@@ -211,7 +247,10 @@ func (sc *singleChecker) Check() {
 			AlertTypeStr: alertTypeStr[MORE_LIMIT],
 
 			Function: sc.Function,
-			Callers:  sc.Callers,
+			File:     sc.File,
+			Line:     sc.Line,
+
+			Callers: sc.Callers,
 
 			When:  now,
 			Spent: time.Since(sc.start),
@@ -225,7 +264,10 @@ func (sc *singleChecker) Check() {
 			AlertTypeStr: alertTypeStr[LESS_LIMIT],
 
 			Function: sc.Function,
-			Callers:  sc.Callers,
+			File:     sc.File,
+			Line:     sc.Line,
+
+			Callers: sc.Callers,
 
 			When:  now,
 			Spent: time.Since(sc.start),
@@ -239,7 +281,10 @@ func (sc *singleChecker) Check() {
 			AlertTypeStr: alertTypeStr[FINISH],
 
 			Function: sc.Function,
-			Callers:  sc.Callers,
+			File:     sc.File,
+			Line:     sc.Line,
+
+			Callers: sc.Callers,
 
 			When:  now,
 			Spent: time.Since(sc.start),

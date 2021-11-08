@@ -12,21 +12,21 @@ var alerts_called = 0
 var alert_function = func(s string) func(a *AlertData) {
 	return func(a *AlertData) {
 		alerts_called++
+		//fmt.Printf("debug: %+v\n", *a)
 
-		fmt.Printf("[%s]\n%+v\n",
-			s,
-			a)
-
-		fmt.Println(a.CallersTree(3))
-		fmt.Println(a.CallersTree(232))
+		alertOnTimeMarkExceeding(s, a)
 	}
+}
+
+func alertOnTimeMarkExceeding(s string, a *AlertData) {
+	fmt.Printf("[NOT DEFAULT, type: %s, where: %s] %s:%d function [%s] worked %s !\n", a.AlertTypeStr, s, a.File, a.Line, a.Function, a.Spent.Truncate(time.Millisecond).String())
 }
 
 //time mark controller 1
 var tm1 = New(alert_function("more")).AlertIfMore(200 * time.Millisecond)
 
 //time mark controller 2
-var tm2 = New(alert_function("start and less")).AlertAtStart().AlertIfLess(2 * time.Second)
+var tm2 = New(nil).AlertAtStart().AlertIfLess(2 * time.Second)
 
 //time marker, no alerts
 var tm3 = New(alert_function("start")).AlertAtStart().AlertAtEnd()
