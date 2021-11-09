@@ -2,41 +2,223 @@ package timemark
 
 import (
 	"fmt"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
 
-var alerts_called = 0
+func Test_NeverAlert(t *testing.T) {
+	var neverAlert = func(t *testing.T) func(a *AlertData) {
+		return func(a *AlertData) {
+			t.Fatal()
+		}
+	}
 
-//called on error behaviour
-var alert_function = func(s string) func(a *AlertData) {
+	tm1 := New(neverAlert(t))
+	defer tm1.Get().Check()
+}
+
+var alerts_called = 0
+var alert_function = func(s string, t *testing.T) func(a *AlertData) {
+	var alertOnTimeMarkExceeding = func(s string, a *AlertData) {
+		fmt.Printf("[NOT DEFAULT,  type: %s, where: %s] %s:%d function [%s] worked %s\n", a.AlertTypeStr, s, a.File, a.Line, a.Function, a.Spent.Truncate(time.Millisecond).String())
+	}
 	return func(a *AlertData) {
 		alerts_called++
-		//fmt.Printf("debug: %+v\n", *a)
-
 		alertOnTimeMarkExceeding(s, a)
+		if !strings.Contains(a.File, "timemark_test.go") {
+			callers := make([]uintptr, 30)
+			wr := runtime.Callers(0, callers)
+
+			for i := 0; i < wr; i++ {
+				fn := runtime.FuncForPC(callers[i])
+				file, line := fn.FileLine(callers[i])
+				fmt.Printf(">> %d >> %s:%d\n", i, file, line)
+			}
+
+			t.Fatal(a.Function + " - incorrect position")
+		}
 	}
 }
 
-func alertOnTimeMarkExceeding(s string, a *AlertData) {
-	fmt.Printf("[NOT DEFAULT, type: %s, where: %s] %s:%d function [%s] worked %s !\n", a.AlertTypeStr, s, a.File, a.Line, a.Function, a.Spent.Truncate(time.Millisecond).String())
+func Test_AlertAtStart(t *testing.T) {
+	alerts_called = 0
+	func() {
+		defer New(alert_function("tm2s", t)).AlertAtStart().Get().Check()
+	}()
+	if alerts_called != 1 {
+		t.Fatal()
+	}
 }
 
-//time mark controller 1
-var tm1 = New(alert_function("more")).AlertIfMore(200 * time.Millisecond)
+func Test_AlertEnums(t *testing.T) {
+	var checkAlertType = func(at int, t *testing.T) func(a *AlertData) {
+		return func(a *AlertData) {
+			if a.AlertType != at {
+				t.Fatal()
+			}
+		}
+	}
 
-//time mark controller 2
-var tm2 = New(nil).AlertAtStart().AlertIfLess(2 * time.Second)
+	func() {
+		defer New(checkAlertType(START, t)).AlertAtStart().Get().Check()
+	}()
 
-//time marker, no alerts
-var tm3 = New(alert_function("start")).AlertAtStart().AlertAtEnd()
+	func() {
+		defer New(checkAlertType(FINISH, t)).AlertAtEnd().Get().Check()
+	}()
 
-func b() {
-	defer tm1.Get().AlertIfMore(800 * time.Millisecond).Check()
+	func() {
+		defer New(checkAlertType(LESS_LIMIT, t)).AlertIfLess(time.Second).Get().Check()
+	}()
+	func() {
+		defer New(checkAlertType(MORE_LIMIT, t)).AlertIfMore(time.Microsecond).Get().Check()
+		time.Sleep(time.Millisecond)
+	}()
 
-	c2()
-	c2()
-	time.Sleep(100 * time.Millisecond)
+}
+
+func Test_AlertAtEnd(t *testing.T) {
+	alerts_called = 0
+	func() {
+		defer New(alert_function("tm3e", t)).AlertAtEnd().Get().Check()
+	}()
+	if alerts_called != 1 {
+		t.Fatal()
+	}
+
+	alerts_called = 0
+	func() {
+		defer New(alert_function("tm3e2", t)).Get().AlertAtEnd().Check()
+	}()
+	if alerts_called != 1 {
+		t.Fatal()
+	}
+
+	New(nil).Get().Check()
+}
+
+func Test_AlertIfMore(t *testing.T) {
+	var tm1a = New(alert_function("tm1a3", t)).AlertIfMore(200 * time.Millisecond)
+
+	alerts_called = 0
+	func() {
+		defer tm1a.Get().Check()
+		time.Sleep(time.Millisecond * 250)
+	}()
+	if alerts_called != 1 {
+		t.Fatal()
+	}
+
+	alerts_called = 0
+	func() {
+		defer tm1a.Get().Check()
+		defer tm1a.Get().Check()
+		time.Sleep(time.Millisecond * 250)
+	}()
+	if alerts_called != 2 {
+		t.Fatal()
+	}
+}
+
+func Test_AlertIfMore2(t *testing.T) {
+	var tm1a = New(alert_function("tm1a2", t))
+
+	alerts_called = 0
+	func() {
+		defer tm1a.Get().AlertIfMore(200 * time.Millisecond).Check()
+		time.Sleep(time.Millisecond * 250)
+	}()
+	if alerts_called != 1 {
+		t.Fatal()
+	}
+}
+
+func Test_AlertIfMore3(t *testing.T) {
+	var tm1a = New(alert_function("tm1a2b", t)).AlertIfMore(time.Millisecond)
+
+	alerts_called = 0
+	func() {
+		defer tm1a.Get().AlertIfMore(200 * time.Millisecond).Check()
+		time.Sleep(time.Millisecond * 50)
+	}()
+	if alerts_called != 0 {
+		t.Fatal()
+	}
+}
+
+func Test_AlertIfLess(t *testing.T) {
+	var tm1a = New(alert_function("tm1a", t)).AlertIfLess(200 * time.Millisecond)
+
+	alerts_called = 0
+	func() {
+		defer tm1a.Get().Check()
+	}()
+	if alerts_called != 1 {
+		t.Fatal()
+	}
+
+	alerts_called = 0
+	func() {
+		defer tm1a.Get().Check()
+		defer tm1a.Get().Check()
+		time.Sleep(10 * time.Millisecond)
+	}()
+	if alerts_called != 2 {
+		t.Fatal()
+	}
+}
+
+func Test_AlertIfLess2(t *testing.T) {
+	var tm1a = New(alert_function("tm1a2", t))
+
+	alerts_called = 0
+	func() {
+		defer tm1a.Get().AlertIfLess(200 * time.Millisecond).Check()
+	}()
+	if alerts_called != 1 {
+		t.Fatal()
+	}
+}
+
+func a50(t *testing.T) {
+	var tm100_300 = New(alert_function("tm3d", t)).AlertAtStart().AlertAtEnd().AlertIfLess(100 * time.Millisecond).AlertIfMore(300 * time.Millisecond)
+	defer tm100_300.Get().Check() //2 times: start , less 100
+	time.Sleep(50 * time.Millisecond)
+}
+
+func a350(t *testing.T) {
+	var tm100_300 = New(alert_function("tm3d", t)).AlertAtStart().AlertAtEnd().AlertIfLess(100 * time.Millisecond).AlertIfMore(300 * time.Millisecond)
+	defer tm100_300.Get().Check() //2 times: start , more 100
+	time.Sleep(350 * time.Millisecond)
+}
+
+func Test_a50(t *testing.T) {
+	alerts_called = 0
+	a50(t)
+	if alerts_called != 2 {
+		t.Fatal(alerts_called)
+	}
+	alerts_called = 0
+	a350(t)
+	if alerts_called != 2 {
+		t.Fatal(alerts_called)
+	}
+}
+
+func a250(t *testing.T) {
+	var tm200_300 = New(alert_function("tm4a", t))
+	defer tm200_300.Get().AlertIfLess(200 * time.Millisecond).AlertIfMore(300 * time.Millisecond).Check() //never
+	time.Sleep(250 * time.Millisecond)
+}
+
+func Test_a250(t *testing.T) {
+	alerts_called = 0
+	a250(t)
+	if alerts_called != 0 {
+		t.Fatal(alerts_called)
+	}
 }
 
 type obj struct {
@@ -44,37 +226,34 @@ type obj struct {
 
 var ob obj
 
-func (o *obj) c() {
-	defer tm1.Get().AlertAtStart().AlertAtEnd().AlertIfMore(time.Millisecond).AlertIfLess(time.Second).Check()
-	defer tm2.Get().Check()
-
-	time.Sleep(100 * time.Millisecond)
+func (o *obj) c(t *testing.T) {
+	var tm100_300 = New(alert_function("tm4b", t)).AlertAtStart().AlertAtEnd().AlertIfLess(100 * time.Millisecond).AlertIfMore(300 * time.Millisecond)
+	defer tm100_300.Get().Check() //2 times: start, more
+	time.Sleep(350 * time.Millisecond)
 }
 
-func c1() {
-	ob.c()
+func ct(t *testing.T) {
+	ob.c(t)
 }
 
-func c2() {
-	c1()
+func ct2(t *testing.T) {
+	ct(t)
 }
 
-func a() {
-	defer tm1.Get().Check()
-	defer tm3.Get().Check()
-
-	b()
-	c2()
-}
-
-func Test_TimeMarker(t *testing.T) {
-	go c2()
-
-	a()
-
-	//fmt.Printf("alerts: %d\n", alerts_called)
-
-	if alerts_called != 15 {
-		t.Fatal()
+func Test_level1(t *testing.T) {
+	alerts_called = 0
+	func() {
+		ct(t)
+	}()
+	if alerts_called != 2 {
+		t.Fatal(alerts_called)
 	}
+}
+
+func Test_defaultAlert(t *testing.T) {
+	defer New(nil).AlertAtStart().Get().AlertAtEnd().Check()
+}
+
+func Test_defaultAlert2(t *testing.T) {
+	defer New(nil).AlertAtStart().AlertAtEnd().Get().Check()
 }
