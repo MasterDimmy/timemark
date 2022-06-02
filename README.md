@@ -11,7 +11,7 @@ import (
 
 func timeMarkAlert(a *timemark.AlertData) {
 	fmt.Printf("timemark 3 seconds: %+v", a)
-	fmt.Printf("timemark callers: %s", a.CallersTree(2))
+	fmt.Printf("timemark caller: %s:%s", a.File, a.Function)
 }
 
 var timemark_2second = timemark.New(timeMarkAlert).AlertIfMore(3 * time.Second)
