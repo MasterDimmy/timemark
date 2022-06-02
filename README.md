@@ -5,6 +5,10 @@ Golang functions time marker to detect too huge time function consumers when it'
 
 Usage:
 ```
+import (
+	"github.com/MasterDimmy/timemark"
+)
+
 func timeMarkAlert(a *timemark.AlertData) {
 	fmt.Printf("timemark 3 seconds: %+v", a)
 	fmt.Printf("timemark callers: %s", a.CallersTree(2))
