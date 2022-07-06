@@ -75,8 +75,13 @@ type tmLimits struct {
 func (tm *timeMarker) AlertAtStart() *timeMarker {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
-	tm.alertAtStart = true
-	return tm
+
+	lmt := tm.tmLimits
+	lmt.alertAtStart = true
+	return &timeMarker{
+		af:       tm.af,
+		tmLimits: lmt,
+	}
 }
 
 //singleChecker whould have singleChecker as it never runs Get()
@@ -84,43 +89,76 @@ func (tm *timeMarker) AlertAtStart() *timeMarker {
 func (tm *timeMarker) AlertAtEnd() *timeMarker {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
-	tm.alertAtEnd = true
-	return tm
+
+	lmt := tm.tmLimits
+	lmt.alertAtEnd = true
+	return &timeMarker{
+		af:       tm.af,
+		tmLimits: lmt,
+	}
 }
 
 func (tm *singleChecker) AlertAtEnd() *singleChecker {
 	tm.tm.mutex.Lock()
 	defer tm.tm.mutex.Unlock()
-	tm.alertAtEnd = true
-	return tm
+
+	lmt := tm.tmLimits
+	lmt.alertAtEnd = true
+	return &singleChecker{
+		tm:       tm.tm,
+		start:    tm.start,
+		tmLimits: lmt,
+	}
 }
 
 func (tm *timeMarker) AlertIfMore(t time.Duration) *timeMarker {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
-	tm.moreLimit = t
-	return tm
+
+	lmt := tm.tmLimits
+	lmt.moreLimit = t
+	return &timeMarker{
+		af:       tm.af,
+		tmLimits: lmt,
+	}
 }
 
 func (tm *timeMarker) AlertIfLess(t time.Duration) *timeMarker {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
-	tm.lessLimit = t
-	return tm
+
+	lmt := tm.tmLimits
+	lmt.lessLimit = t
+	return &timeMarker{
+		af:       tm.af,
+		tmLimits: lmt,
+	}
 }
 
 func (tm *singleChecker) AlertIfMore(t time.Duration) *singleChecker {
 	tm.tm.mutex.Lock()
 	defer tm.tm.mutex.Unlock()
-	tm.moreLimit = t
-	return tm
+
+	lmt := tm.tmLimits
+	lmt.moreLimit = t
+	return &singleChecker{
+		tm:       tm.tm,
+		start:    tm.start,
+		tmLimits: lmt,
+	}
 }
 
 func (tm *singleChecker) AlertIfLess(t time.Duration) *singleChecker {
 	tm.tm.mutex.Lock()
 	defer tm.tm.mutex.Unlock()
-	tm.lessLimit = t
-	return tm
+
+	lmt := tm.tmLimits
+	lmt.lessLimit = t
+	return &singleChecker{
+		tm:       tm.tm,
+		start:    tm.start,
+		tmLimits: lmt,
+	}
 }
 
 type singleChecker struct {
@@ -132,6 +170,7 @@ type singleChecker struct {
 
 var replacer = strings.NewReplacer("command-line-arguments.", "")
 
+//locks position and start time counter from it
 func (tm *timeMarker) Get() *singleChecker {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()

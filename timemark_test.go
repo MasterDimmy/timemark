@@ -257,3 +257,30 @@ func Test_defaultAlert(t *testing.T) {
 func Test_defaultAlert2(t *testing.T) {
 	defer New(nil).AlertAtStart().AlertAtEnd().Get().Check()
 }
+
+func Test_changedTimeAlert(t *testing.T) {
+	errs := 0
+
+	alert := func(a *AlertData) {
+		errs++
+		alert_function("changedTime", t)(a)
+	}
+
+	tm := New(alert).AlertIfMore(time.Second)
+
+	tm2 := tm.AlertIfMore(time.Second * 2)
+
+	if tm.moreLimit != time.Second || tm2.moreLimit != time.Second*2 {
+		t.Fatal("not equal")
+	}
+
+	func() {
+		defer tm.Get().Check()
+		defer tm2.Get().Check()
+		time.Sleep(time.Second + time.Second/2)
+	}()
+
+	if errs != 1 {
+		t.Fatal("must be 1 alert!")
+	}
+}
