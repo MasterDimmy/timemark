@@ -161,14 +161,6 @@ func (tm *singleChecker) AlertIfLess(t time.Duration) *singleChecker {
 	}
 }
 
-//do not trigger more then N alerts per D duration for same line of code
-func (tm *singleChecker) MaxSameAlertsRate(n int, d time.Duration) *singleChecker {
-	tm.tm.mutex.Lock()
-	defer tm.tm.mutex.Unlock()
-	tm.lessLimit = t
-	return tm
-}
-
 type singleChecker struct {
 	start time.Time
 	tm    *timeMarker
