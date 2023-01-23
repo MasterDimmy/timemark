@@ -252,8 +252,10 @@ func Test_level1(t *testing.T) {
 
 func Test_defaultAlert(t *testing.T) {
 	defer New(nil).AlertAtStart().Get().AlertAtEnd().Check()
+	//triggers [START] C:/gopath/src/github.com/MasterDimmy/timemark/timemark_test.go:266 function [Test_defaultAlert2.func1] worked 0s !
 }
 
 func Test_defaultAlert2(t *testing.T) {
 	defer New(nil).AlertAtStart().AlertAtEnd().Get().Check()
+	//triggers [FINISH] C:/gopath/src/github.com/MasterDimmy/timemark/timemark_test.go:267 function [Test_defaultAlert2.func1] worked 0s !
 }
